@@ -16,7 +16,7 @@ PyOPLM is a simple, Linux (and Windows using Docker, check [this](https://github
 pip install pyoplm
 ```
 
-Latest version is 0.51
+Latest version is 0.52
 
 ## TODO
  - CFG file editor, download game data from an open api like RAWG.io
@@ -52,7 +52,7 @@ Perform these steps to enable indexing:
 ## Usage
 
 The argument opl_dir is mostly required to be supplid by the commands of this app, but can be avoided by putting your
-OPL Directory in an environment variable named PYOPLM_OPL_DIR 
+OPL Directory in an environment variable named PYOPLM_OPL_DIR
 
 ```
 $ pyoplm --help
