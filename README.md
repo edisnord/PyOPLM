@@ -16,7 +16,7 @@ PyOPLM is a simple, Linux (and Windows using Docker, check [this](https://github
 pip install pyoplm
 ```
 
-Latest version is 0.53 (Do not download anything older)
+Latest version is 0.6 (Do not download anything older, this app is under heavy development)
 
 ## TODO
  - CFG file editor, download game data from an open api like RAWG.io
@@ -55,20 +55,20 @@ The argument opl_dir is mostly required to be supplid by the commands of this ap
 OPL Directory in an environment variable named PYOPLM_OPL_DIR
 
 ```
-$ pyoplm --help
-usage: pyoplm [-h] {list,add,storage,rename,fix,init,delete} ...
+usage: pyoplm [-h] {list,rename,delete,fix,init,add,storage,bintools} ...
 
 positional arguments:
-  {list,add,storage,rename,fix,init,delete}
+  {list,rename,delete,fix,init,add,storage,bintools}
                         Choose your path...
     list                List Games on OPL-Drive
-    add                 Add Media Image to OPL-Drive
-    storage             Art and names storage-related functionality
-    rename              Change the title of the game corresponding to opl_id to
-                        new_title in the given opl_dir
+    rename              Change the title of the game corresponding to opl_id
+                        to new_title in the given opl_dir
+    delete              Delete game from Drive
     fix                 rename/fix media filenames
     init                Initialize OPL folder structure
-    delete              Delete game from Drive
+    add                 Add ISO/CUE PS2 and PSX game to opl_dir
+    storage             Art and title storage-related functionality
+    bintools            Tools for processing cue/bin games
 
 options:
   -h, --help            show this help message and exit

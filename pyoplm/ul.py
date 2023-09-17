@@ -50,8 +50,9 @@ class ULConfigGame():
     # For Game object
     game = None
 
-    def __init__(self, filedir, data):
-        from pyoplm.game import ULGameImage
+    def __init__(self, filedir, data, ulconfig):
+        from pyoplm.game import ULGame
+        self.parent_cfg = ulconfig
         self.filedir = filedir
         self.name = bytes(data[:32])
         self.crc32 = hex(usba_crc32(self.name)).capitalize()
@@ -62,7 +63,7 @@ class ULConfigGame():
         self.remains = bytes(data[49:64])
 
         self.opl_id = self.region_code[3:]
-        self.game = ULGameImage(ulcfg=self)
+        self.game = ULGame(ulcfg=self)
 
     def refresh_crc32(self):
         self.crc32 = hex(usba_crc32(self.name)).capitalize()
@@ -94,7 +95,7 @@ class ULConfig():
         else:
             filepath.touch(777)
 
-    # Add / Update Game using Game object
+    # Insert game to ULConfig from an ISO file, return ULConfigGame object representing it
     def add_game_from_iso(self, src_iso: Path, force: bool, title: bytes=None):
         if not title:
             title: bytes = re.sub(r'.[iI][sS][oO]', '',
@@ -119,9 +120,10 @@ class ULConfig():
 
         ul_files_from_iso(src_iso, install_dir, force)
         config = ULConfigGame(install_dir, data)
-        if config.game.is_ok():
+        if config.game.check_status():
             self.add_ulgame(region_code, config)
             self.write()
+            return config
         else:
             raise IOError(
                 f"Files could not be created for game \'{title.decode('ascii', 'ignore')}\'")
@@ -146,7 +148,7 @@ class ULConfig():
                 check_ul_entry_for_corruption_and_crash(game_cfg)
 
                 game = ULConfigGame(
-                    data=game_cfg, filedir=self.filepath.parent)
+                    data=game_cfg, filedir=self.filepath.parent, ulconfig=self)
                 self.ulgames.update({game.region_code: game})
                 game_cfg = data.read(64)
 

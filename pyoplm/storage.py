@@ -125,13 +125,13 @@ class Indexing:
         cur = self.con.cursor()
 
         console_ps1: Iterator[Tuple[str, str, str, str, str, str]] = cur.execute(
-            "SELECT * FROM Artworks WHERE region_code=? and console='PS1'", (region_code,))
+            "SELECT * FROM Artworks WHERE region_code=? and console='PS1'", (region_code,)).fetchall()
         console_ps2: Iterator[Tuple[str, str, str, str, str, str]] = cur.execute(
-            "SELECT * FROM Artworks WHERE region_code=? and console='PS2'", (region_code,))
+            "SELECT * FROM Artworks WHERE region_code=? and console='PS2'", (region_code,)).fetchall()
 
         # Sometimes PS1 games can be in PS2 folder, and PS2 games can be in PS1 folder
         # Magical stuff
-        return map(lambda x: Artwork(*x), max(console_ps1.fetchall(), console_ps2.fetchall(), key=len))
+        return map(lambda x: Artwork(*x), max(console_ps1, console_ps2, key=len))
 
     def get_title_for_game(self, region_code: str) -> str | None:
         cur = self.con.cursor()

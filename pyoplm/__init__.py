@@ -1,3 +1,3 @@
 name = "pyoplm"
 
-from pyoplm.opl import main
+from pyoplm.opl.args import main_parser

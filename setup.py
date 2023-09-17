@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="pyoplm",
-    version="0.53",
+    version="0.6",
     author="Nold, edisnord",
     author_email="nold@gnu.one, edisnord@gmail.com",
     description="Tool To Manage Open-PS2-Loader USB-Drives & Games",
