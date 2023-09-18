@@ -9,14 +9,14 @@ PyOPLM is a simple, Linux (and Windows using Docker, check [this](https://github
  - init OPL Directory with all needed folders
  - Fix game names for all games on drive
  - Update game titles and download game art from an online static file storage or local directory
- - Comes packaged with [bchunk](https://github.com/extramaster/bchunk), [binmerge](https://github.com/putnam/binmerge) and [cue2pops-linux](https://github.com/tallero/cue2pops-linux) for x86_64 Linux, their respective licenses can be found in their folders in the pyoplm/lib/linux64 folder of this repo
+ - Comes packaged with [bchunk](https://github.com/extramaster/bchunk), [binmerge](https://github.com/putnam/binmerge) and [cue2pops](https://github.com/israpps/cue2pops) for x86_64 Linux, their respective licenses can be found in their folders in the pyoplm/lib/linux64 folder of this repo
 
 ## Installation
 ```bash
 pip install pyoplm
 ```
 
-Latest version is 0.6 (Do not download anything older, this app is under heavy development)
+Latest version is 0.61 (Do not download anything older, this app is under heavy development)
 
 ## TODO
  - CFG file editor, download game data from an open api like RAWG.io

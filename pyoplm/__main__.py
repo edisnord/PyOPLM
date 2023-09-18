@@ -1,3 +1,3 @@
-from pyoplm.opl.args import main_parser
+from pyoplm.opl.args import main_parser as main
 
-main_parser()
+main()
