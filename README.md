@@ -16,7 +16,7 @@ PyOPLM is a simple, Linux (and Windows using Docker, check [this](https://github
 pip install pyoplm
 ```
 
-Latest version is 0.61 (Do not download anything older, this app is under heavy development)
+Latest version is 0.62 (Do not download anything older, this app is under heavy development)
 
 ## TODO
  - CFG file editor, download game data from an open api like RAWG.io

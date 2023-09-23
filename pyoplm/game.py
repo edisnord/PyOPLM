@@ -47,14 +47,14 @@ class Game(ABC):
         return f"""\n----------------------------------------
 LANG=en_US.UTF-8
 Region code:       {self.opl_id}
-Size (MB):    {self.size} 
-New Title:    {self.title} 
+Size (MB):    {self.size}
+New Title:    {self.title}
 Filename:     {self.filename}
 
 Filetype:     {self.filetype}
 Filedir:      {self.filedir}
 Type:         {self.game_format.value}
-ID:           {self.id} 
+ID:           {self.id}
 Filepath:     {self.filepath}
 """
 
@@ -77,7 +77,7 @@ Filepath:     {self.filepath}
     @abstractmethod
     def check_status(self) -> GameStatus:
         return self.GameStatus.OK
-    
+
     @abstractmethod
     def rename(self, new_title: str) -> None:
         pass
@@ -183,13 +183,13 @@ class ULGame(Game):
         return f"""\n----------------------------------------
 LANG=en_US.UTF-8
 Region Code:       {self.opl_id}
-Size (MB):    {self.size} 
-Title:    {self.title} 
+Size (MB):    {self.size}
+Title:    {self.title}
 
 Game type:     UL
 Game dir:      {self.filedir}
 CRC32:        {self.crc32}
-ID:           {self.id} 
+ID:           {self.id}
 Filepath:     {self.filepath}
 """
 
@@ -216,7 +216,7 @@ class ISOGame(Game):
     def rename(self, new_title: str) -> None:
         if len(new_title) > 32:
             print(f"Title {new_title} is too long!",
-                file=sys.stderr)
+                  file=sys.stderr)
             print(
                 "Titles longer than 32 characters are not permitted!", file=sys.stderr)
             print(f"Skipping {self.opl_id}...", file=sys.stderr)
@@ -280,7 +280,7 @@ class POPSGame(Game):
     REGION_CODE_OFFSET = 1086272
     GameStatus = Enum("GameStatus", ["WRONG_FILENAME", "OK"])
 
-    def __init__(self, filepath: path):
+    def __init__(self, filepath: Path):
         super().__init__(filepath)
         self.size = self.filepath.stat().st_size / (1024 ^ 2)
         self.filetype = "VCD"
@@ -345,7 +345,7 @@ class POPSGame(Game):
     def rename(self, new_title: str) -> None:
         if len(new_title) > 32:
             print(f"Title {new_title} is too long!",
-                file=sys.stderr)
+                  file=sys.stderr)
             print(
                 "Titles longer than 32 characters are not permitted!", file=sys.stderr)
             print(f"Skipping {self.opl_id}...", file=sys.stderr)

@@ -23,7 +23,7 @@ class GamesManager():
     def __init__(self, opl_dir: Path):
         self.opl_dir = opl_dir
         self.games_dict = {}
-        self.__initialize_games()        
+        self.__initialize_games()
 
     def __get_pops_game_files(self) -> Iterator[Path]:
         path = self.opl_dir.joinpath("POPS")
@@ -41,14 +41,14 @@ class GamesManager():
             (ISOGame, self.__get_iso_game_files, "iso_games"),
         ]
         for (game_type, get_files, dest_list) in game_to_files_func:
-                files = get_files()
-                games = {
-                    game.opl_id: game 
-                        for game in (game_type(file) for file in files)
-                    }
-                self.games_dict.update(games)
+            files = get_files()
+            games = {
+                game.opl_id: game
+                for game in (game_type(file) for file in files)
+            }
+            self.games_dict.update(games)
 
-                setattr(self, dest_list, iter(games.values()))
+            setattr(self, dest_list, iter(games.values()))
         self.__initialize_ul_games()
 
     def __initialize_ul_games(self) -> None:
@@ -57,12 +57,11 @@ class GamesManager():
             return
 
         games = {
-            game_cfg.game.opl_id :game_cfg.game
-                for game_cfg in ULConfig(ulcfg_file).ulgames.values()
+            game_cfg.game.opl_id: game_cfg.game
+            for game_cfg in ULConfig(ulcfg_file).ulgames.values()
         }
         self.games_dict.update(games)
         self.ul_games = iter(games.values())
-
 
     def list(self) -> None:
         games_and_kinds: Dict[str, Iterator[Game]] = {
@@ -73,7 +72,7 @@ class GamesManager():
 
         found_one = False
         for (kind, game_list) in games_and_kinds.items():
-            while game := next(game_list, None):
+            while game := next(iter(game_list), None):
                 if not found_one:
                     print(f"|-> {kind} Games:")
                     found_one = True
@@ -86,48 +85,59 @@ class GamesManager():
             self.games_dict[game_id].delete_game(self.opl_dir)
             print("Deleted!")
         except KeyError:
-            print(f"Game with the given region code {game_id} not found", file=sys.stderr)
+            print(
+                f"Game with the given region code {game_id} not found", file=sys.stderr)
             sys.exit(1)
 
     # Installs game to OPL directory, returns the Game subclass object representing the added game
-    def add(self, game_path: Path, psx = False, iso = False, ul = False, force = False) -> Game:
-            if psx:
-                print("Installing POPS game...")
-                return psx_add(game_path, self.opl_dir)
-            
-            if re.match(r"^.[cC][uU][eE]$", game_path.suffix):
-                print(
-                    f"Attempting to convert game {game_path} to ISO and install...")
-                return install_ps2_cue(game_path, self.opl_dir)
-
-            iso_id = get_iso_id(game_path)
-            # Game size in MB
-            game_size = game_path.stat().st_size / (1024 ** 2)
-
-            if (game_size > 4000 and not iso) or ul:
-                print("Converting to UL format because game is larger than 4GB")
-                ul_cfg = ULConfig(path_to_ul_cfg(self.opl_dir))
-                return ul_cfg.add_game_from_iso(game_path, force)
+    def add(self, game_path: Path, psx=False, iso=False, ul=False, force=False) -> Game:
+        if psx:
+            print("Installing POPS game...")
+            if game := psx_add(game_path, self.opl_dir):
+                return game
             else:
-                if (iso_id in self.games_dict) and not force:
+                print("Error installing game", file=sys.stderr)
+
+        if re.match(r"^.[cC][uU][eE]$", game_path.suffix):
+            print(
+                f"Attempting to convert game {game_path} to ISO and install...")
+            if game := install_ps2_cue(game_path, self.opl_dir):
+                return game
+            else:
+                print("Error installing game", file=sys.stderr)
+
+        iso_id = get_iso_id(game_path)
+        # Game size in MB
+        game_size = game_path.stat().st_size / (1024 ** 2)
+
+        if (game_size > 4000 and not iso) or ul:
+            print("Converting to UL format because game is larger than 4GB")
+            ul_cfg = ULConfig(path_to_ul_cfg(self.opl_dir))
+            if game := ul_cfg.add_game_from_iso(game_path, force).game:
+                return game
+            else:
+                print("Error installing game", file=sys.stderr)
+        else:
+            if (iso_id in self.games_dict) and not force:
+                print(
+                    f"Game with ID \'{iso_id}\' is already installed, skipping...")
+                print("Use the -f flag to force the installation of this game")
+            else:
+                title = game_path.stem
+
+                if len(title) > 32:
                     print(
-                        f"Game with ID \'{iso_id}\' is already installed, skipping...")
-                    print("Use the -f flag to force the installation of this game")
-                else:
-                    title = game_path.stem
+                        f"Game title \'{title}\' is longer than 32 characters, skipping...")
+                    sys.exit(1)
+                new_game_path: Path = self.opl_dir.joinpath(
+                    "DVD" if game_size > 700 else "CD",
+                    f"{iso_id}.{title}.iso")
 
-                    if len(title) > 32:
-                        print(
-                            f"Game title \'{title}\' is longer than 32 characters, skipping...")
-                        return
-                    new_game_path: Path = self.opl_dir.joinpath(
-                        "DVD" if game_size > 700 else "CD",
-                        f"{iso_id}.{title}.iso")
+                print(
+                    f"Copying game to \'{new_game_path}\', please wait...")
+                copyfile(game_path, new_game_path)
+                new_game_path.chmod(0o777)
+                print("Done!")
 
-                    print(
-                        f"Copying game to \'{new_game_path}\', please wait...")
-                    copyfile(game_path, new_game_path)
-                    new_game_path.chmod(0o777)
-                    print("Done!")
-
-                    return ISOGame(new_game_path)
+                return ISOGame(new_game_path)
+        sys.exit(0)

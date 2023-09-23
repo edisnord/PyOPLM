@@ -9,8 +9,10 @@ import sys
 
 from pyoplm.game import ISOGame, POPSGame
 
-BinMergeArgs = namedtuple("BinMergeArgs", ["outdir", "license", "split", "cuefile", "basename"])
-Cue2PopsArgs = namedtuple("Cue2PopsArgs", ["input_file", "gap", "vmode", "trainer", "output_file"])
+BinMergeArgs = namedtuple(
+    "BinMergeArgs", ["outdir", "license", "split", "cuefile", "basename"])
+Cue2PopsArgs = namedtuple(
+    "Cue2PopsArgs", ["input_file", "gap", "vmode", "trainer", "output_file"])
 BChunkArgs = namedtuple("BChunkArgs", ["p", "src_bin", "src_cue", "basename"])
 
 cue2pops_location = Path(
@@ -20,9 +22,11 @@ bchunk_location = Path(
 binmerge_location = Path(
     __file__).parent.joinpath("lib", "linux64", "binmerge", "binmerge")
 
+
 def cue2pops(args: Cue2PopsArgs):
     if platform.machine() != "x86_64":
-        print(f"Machines of type {platform.machine()} cannot run the binary dependencies of this app's bintools (yet)")
+        print(
+            f"Machines of type {platform.machine()} cannot run the binary dependencies of this app's bintools (yet)")
         sys.exit(1)
     args_list = [cue2pops_location.absolute().as_posix(), args.input_file or '',
                  f"gap{args.gap}" if args.gap else '', 'vmode' if args.vmode else '', 'trainer' if args.trainer else '', args.output_file or '']
@@ -30,26 +34,32 @@ def cue2pops(args: Cue2PopsArgs):
     complete = subprocess.run(args_list)
     return complete.returncode
 
+
 def bchunk(args: BChunkArgs):
     if platform.machine() != "x86_64":
-        print(f"Machines of type {platform.machine()} cannot run the binary dependencies of this app's bintools (yet)")
+        print(
+            f"Machines of type {platform.machine()} cannot run the binary dependencies of this app's bintools (yet)")
         sys.exit(1)
-    args_list = [bchunk_location.absolute().as_posix(), '-p' if args.p else '', args.src_bin, args.src_cue, args.basename]
+    args_list = [bchunk_location.absolute().as_posix(
+    ), '-p' if args.p else '', args.src_bin, args.src_cue, args.basename]
     args_list = list(filter(bool, args_list))
     complete = subprocess.run(args_list)
     return complete.returncode
+
 
 def binmerge(args: BinMergeArgs):
     if platform.machine() != "x86_64":
-        print(f"Machines of type {platform.machine()} cannot run the binary dependencies of this app's bintools (yet)")
+        print(
+            f"Machines of type {platform.machine()} cannot run the binary dependencies of this app's bintools (yet)")
         sys.exit(1)
     args_list = [binmerge_location.absolute().as_posix(), ('-o' + args.outdir) or '', '-l' if args.license else '', '-s' if args.split else '',
-                args.cuefile.absolute().as_posix(), args.basename or '']
+                 args.cuefile.absolute().as_posix(), args.basename or '']
     args_list = list(filter(bool, args_list))
     complete = subprocess.run(args_list)
     return complete.returncode
 
-def install_ps2_cue(cuefile_path: Path, opl_dir: Path) -> str:
+
+def install_ps2_cue(cuefile_path: Path, opl_dir: Path) -> ISOGame | None:
     if not cuefile_path.exists():
         print(f"File {cuefile_path.as_posix()} does not exist, skipping...")
         return
@@ -95,7 +105,8 @@ def install_ps2_cue(cuefile_path: Path, opl_dir: Path) -> str:
 
     return ISOGame(final_path)
 
-def psx_add(cuefile_path: Path, opl_dir: Path) -> str:
+
+def psx_add(cuefile_path: Path, opl_dir: Path) -> POPSGame | None:
     TMP_FILES_NAME = "pyoplm_tmp"
     print("Installing PSX game " + cuefile_path.as_posix())
     if len(cuefile_path.stem) > 32:
@@ -117,10 +128,10 @@ def psx_add(cuefile_path: Path, opl_dir: Path) -> str:
 
     if needs_binmerge:
         bm_args: BinMergeArgs = BinMergeArgs(cuefile=cuefile_path,
-                                                basename=TMP_FILES_NAME,
-                                                license=None,
-                                                split=None,
-                                                outdir="/tmp")
+                                             basename=TMP_FILES_NAME,
+                                             license=None,
+                                             split=None,
+                                             outdir="/tmp")
         binmerge_exit_code = binmerge(bm_args)
         if binmerge_exit_code != 0:
             print(
