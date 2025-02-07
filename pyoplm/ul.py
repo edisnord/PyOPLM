@@ -1,14 +1,13 @@
 #!/usr/bin/env python3
 # from game import ULGameImage
 import math
-import os
 import re
-from typing import Dict, List
 from enum import Enum
 from pathlib import Path
 from pyoplm.common import usba_crc32, get_iso_id, ul_files_from_iso\
                         , check_ul_entry_for_corruption_and_crash  \
                         , check_ul_entry_for_corruption, ULCorruptionType
+
 
 
 class ULMediaType(Enum):
@@ -21,7 +20,7 @@ class ULMediaType(Enum):
 
 
 class ULConfigGame():
-    filedir: Path = None
+    filedir: Path
     global REGION_CODE_REGEX
 
     # Fields in ul.cfg per game (always 64byte)
@@ -45,25 +44,22 @@ class ULConfigGame():
     # This CRC32-Hash is used for the ul-filenames
     # By hashing the "name"-bytes OPL finds the files,
     # that belong to a specific game
-    crc32 = None
-
+    
     # For Game object
-    game = None
 
-    def __init__(self, filedir, data, ulconfig):
+    def __init__(self, filedir: Path, data: bytes):
         from pyoplm.game import ULGame
-        self.parent_cfg = ulconfig
         self.filedir = filedir
         self.name = bytes(data[:32])
-        self.crc32 = hex(usba_crc32(self.name)).capitalize()
+        self.crc32: str = hex(usba_crc32(self.name)).capitalize()
         self.region_code = bytes(data[32:46])
         self.unknown = bytes([data[46]])
         self.parts = bytes([data[47]])
         self.media = ULMediaType(bytes([data[48]]))
         self.remains = bytes(data[49:64])
 
-        self.opl_id = self.region_code[3:]
-        self.game = ULGame(ulcfg=self)
+        self.opl_id: bytes = self.region_code[3:]
+        self.game: ULGame = ULGame(ulcfg=self)
 
     def refresh_crc32(self):
         self.crc32 = hex(usba_crc32(self.name)).capitalize()
@@ -83,8 +79,8 @@ class ULConfigGame():
 
 # ul.cfg handling class
 class ULConfig():
-    ulgames: Dict[bytes, ULConfigGame] = {}
-    filepath: Path = None
+    ulgames: dict[bytes, ULConfigGame] = {}
+    filepath: Path
 
     # Generate ULconfig using ULGameConfig objects
     # Or Read ULConfig from filepath
@@ -96,9 +92,9 @@ class ULConfig():
             filepath.touch(777)
 
     # Insert game to ULConfig from an ISO file, return ULConfigGame object representing it
-    def add_game_from_iso(self, src_iso: Path, force: bool, title: bytes=None):
+    def add_game_from_iso(self, src_iso: Path, force: bool, title: bytes|None=None):
         if not title:
-            title: bytes = re.sub(r'.[iI][sS][oO]', '',
+            title = re.sub(r'.[iI][sS][oO]', '',
                                 src_iso.name).encode('ascii')
         game_size = src_iso.stat().st_size / 1024 ** 2
 
@@ -118,7 +114,7 @@ class ULConfig():
         install_dir = self.filepath.parent
         data = title + region_code + unknown + parts + media + remaining
 
-        ul_files_from_iso(src_iso, install_dir, force)
+        _ = ul_files_from_iso(src_iso, install_dir, force)
         config = ULConfigGame(install_dir, data)
         if config.game.check_status():
             self.add_ulgame(region_code, config)
@@ -148,7 +144,7 @@ class ULConfig():
                 check_ul_entry_for_corruption_and_crash(game_cfg)
 
                 game = ULConfigGame(
-                    data=game_cfg, filedir=self.filepath.parent, ulconfig=self)
+                    data=game_cfg, filedir=self.filepath.parent)
                 self.ulgames.update({game.region_code: game})
                 game_cfg = data.read(64)
 
@@ -156,7 +152,7 @@ class ULConfig():
     def write(self):
         with open(self.filepath, 'wb+') as cfg:
             for game in self.ulgames.values():
-                cfg.write(game.get_binary_data())
+                _ = cfg.write(game.get_binary_data())
         
         self.filepath.chmod(0o777)
 
@@ -165,7 +161,7 @@ class ULConfig():
             map(lambda part: ".".join(["ul"] + str(part.name).split('.')[2:4]).encode('ascii'), self.filepath.parent.glob("ul.*.*.*")
                 )
         )
-        ul_region_codes: List[bytes] = self.ulgames.keys()
+        ul_region_codes: set[bytes] = set(self.ulgames.keys())
         if installed_region_codes == ul_region_codes:
             print('Installed UL games correspond ul.cfg games, nothing to recover')
         else:
@@ -201,27 +197,28 @@ class ULConfig():
             file_parts = file.name.split(".")
             new_filename = ".".join(
                 [file_parts[0], crc32, file_parts[2], file_parts[3], file_parts[4]])
-            file.rename(self.filepath.parent.joinpath(new_filename))
+            _ = file.rename(self.filepath.parent.joinpath(new_filename))
 
         self.add_ulgame(region_code, ULConfigGame(self.filepath.parent, data))
 
         self.write()
 
     def rename_game(self, game_id: str, new_title: str):
-        game_id = b"ul." + game_id.encode("ascii")
-        game_to_rename = self.ulgames[game_id]
+        game_id_b = b"ul." + game_id.encode("ascii")
+        game_to_rename = self.ulgames[game_id_b]
         game_to_rename.name = new_title.encode("ascii").ljust(32, b'\x00')
 
         crc32 = hex(usba_crc32(new_title.encode("ascii")))[2:].upper()
         for file in game_to_rename.game.get_filenames():
             file_parts = file.name.split(".")
             new_filename = ".".join([file_parts[0], crc32, file_parts[2], file_parts[3], file_parts[4]])
-            file.rename(self.filepath.parent.joinpath(new_filename))
+            _ = file.rename(self.filepath.parent.joinpath(new_filename))
         
         game_to_rename.refresh_crc32()
 
         self.write()
 
+    @staticmethod
     def find_and_delete_corrupted_entries(filepath: Path):
         final_file: bytes = b""
 
@@ -231,13 +228,14 @@ class ULConfig():
                 if len(game_cfg) < 64:
                     game_cfg = data.read(64)
                     continue
-                match check_ul_entry_for_corruption(game_cfg):
-                    case ULCorruptionType.REGION_CODE | ULCorruptionType.MEDIA_TYPE:
-                        print(f"The game with the title \'{game_cfg[0:32].decode('ascii', 'ignore')}\' is corrupted, recovering UL entry and renaming to 'PLACEHOLDER'")
-                        pass
-                    case ULCorruptionType.NO_CORRUPTION:
-                        final_file += game_cfg
+                corruption_type = check_ul_entry_for_corruption(game_cfg)
+                if corruption_type == ULCorruptionType.REGION_CODE or corruption_type == ULCorruptionType.MEDIA_TYPE:
+                    print(f"The game with the title \'{game_cfg[0:32].decode('ascii', 'ignore')}\' is corrupted, recovering UL entry and renaming to 'PLACEHOLDER'")
+                    pass
+                elif corruption_type == ULCorruptionType.NO_CORRUPTION:
+                    final_file += game_cfg
+
                 game_cfg = data.read(64)
         
-        filepath.write_bytes(final_file)
+        _ = filepath.write_bytes(final_file)
 

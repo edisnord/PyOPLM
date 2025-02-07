@@ -97,7 +97,7 @@ def check_ul_entry_for_corruption_and_crash(data: bytes):
             f"The entry \'{data[0:32].decode('ascii', 'ignore')}\' in ul.cfg is corrupted, run 'fix' on the directory to try automatically fixing the issue'")
         sys.exit(1)
 
-def check_ul_entry_for_corruption(data) -> ULCorruptionType:
+def check_ul_entry_for_corruption(data: bytes) -> ULCorruptionType:
     if not REGION_CODE_REGEX_BYTES.findall(bytes(data[32:46])):
         return ULCorruptionType.REGION_CODE
     if not (bytes([data[48]]) == b"\x12" or bytes([data[48]]) == b"\x14"):

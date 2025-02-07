@@ -1,6 +1,8 @@
 # PyOPLM - Python Open PS2 Loader Manager
 PyOPLM is a simple, Linux (and Windows using Docker, check [this](https://github.com/edisnord/PyOPLM-smb-docker-setup) repo for a Docker compose setup with a helper PowerShell script), WIP python app to manage games installed in a directory used by [Open PS2 Loader](https://github.com/Jay-Jay-OPL/OPL-Daily-Builds). Supports SMB and USB folders at the moment, hard drive games support is WIP.
 
+*IMPORTANT*: Only supporting Python version 3.10 and greater at the moment
+
 ## Features
  - Add, remove and rename games in your OPL Directory
    - Support for ISO games, UL and POPS games (POPS and PS2 CD bin/cue game install support is only on x86_64 linux)
@@ -16,7 +18,7 @@ PyOPLM is a simple, Linux (and Windows using Docker, check [this](https://github
 pip install pyoplm
 ```
 
-Latest version is 0.62 (Do not download anything older, this app is under heavy development)
+Latest version is 0.63 (Do not download anything older, this app is under heavy development)
 
 ## TODO
  - CFG file editor, download game data from an open api like RAWG.io

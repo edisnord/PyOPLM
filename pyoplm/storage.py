@@ -7,7 +7,7 @@ from itertools import islice
 from pathlib import Path
 import sqlite3
 import re
-from typing import Dict, Iterator, List, Set, Tuple, NewType
+from typing import Any, Dict, Iterator, List, Set, Tuple, NewType
 from urllib.request import urlopen
 from urllib.parse import quote, urljoin
 from urllib.error import HTTPError, URLError
@@ -16,7 +16,7 @@ from PIL import Image
 from io import StringIO
 import os
 
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, ResultSet
 
 
 def urls_for_odd_type(region_code: str, art_type: str, url=None) -> Iterator[Tuple[str, str]]:
@@ -78,13 +78,12 @@ class Artwork:
 class Indexing:
     con: sqlite3.Connection
     zip_contents_url: str
-    storage_path: Path | str
     title_csv_location: str
-    INDEX_FILENAME = "indexed_storage.db"
+    INDEX_FILENAME: str = "indexed_storage.db"
 
-    ART_FILENAME_PATTERN = r'[HMPGNCSJTBDAKs][a-zA-Z]{3}.?\d{3}\.?\d{2}_([A-Z]*(2|_\d\d)?)'
+    ART_FILENAME_PATTERN: str = r'[HMPGNCSJTBDAKs][a-zA-Z]{3}.?\d{3}\.?\d{2}_([A-Z]*(2|_\d\d)?)'
 
-    CREATE_TABLE_ARTWORKS_DDL = """
+    CREATE_TABLE_ARTWORKS_DDL: str = """
     CREATE TABLE IF NOT EXISTS Artworks (
         region_code VARCHAR(11) NOT NULL,
         console VARCHAR(3)
@@ -99,7 +98,7 @@ class Indexing:
         PRIMARY KEY (region_code, console ,art_type)
     );"""
 
-    CREATE_TABLE_TITLES = """
+    CREATE_TABLE_TITLES: str = """
     CREATE TABLE IF NOT EXISTS Titles (
         region_code VARCHAR(11) PRIMARY KEY NOT NULL,
         title text
@@ -111,8 +110,8 @@ class Indexing:
         self.zip_contents_url = zip_contents_url
         self.title_csv_location = title_csv_location
         cur = self.con.cursor()
-        cur.execute(self.CREATE_TABLE_TITLES)
-        cur.execute(self.CREATE_TABLE_ARTWORKS_DDL)
+        _ = cur.execute(self.CREATE_TABLE_TITLES) 
+        _ = cur.execute(self.CREATE_TABLE_ARTWORKS_DDL)
         self.con.commit()
         # Check if there are no rows in the table
         if not int(cur.execute("SELECT COUNT(*) FROM Artworks").fetchone()[0]):
@@ -124,14 +123,15 @@ class Indexing:
     def get_artworks_for_game(self, region_code: str) -> Iterator[Artwork]:
         cur = self.con.cursor()
 
-        console_ps1: Iterator[Tuple[str, str, str, str, str, str]] = cur.execute(
+        # I know that the table's columns are just 6 strings, that's why the type annotation is here
+        console_ps1: list[tuple[str, str, str, str, str, str]] = cur.execute(
             "SELECT * FROM Artworks WHERE region_code=? and console='PS1'", (region_code,)).fetchall()
-        console_ps2: Iterator[Tuple[str, str, str, str, str, str]] = cur.execute(
+        console_ps2: list[tuple[str, str, str, str, str, str]] = cur.execute(
             "SELECT * FROM Artworks WHERE region_code=? and console='PS2'", (region_code,)).fetchall()
 
         # Sometimes PS1 games can be in PS2 folder, and PS2 games can be in PS1 folder
         # Magical stuff
-        return map(lambda x: Artwork(*x), max(console_ps1, console_ps2, key=len))
+        return map(lambda x: Artwork(*x), console_ps1 if len(console_ps1) > len(console_ps2) else console_ps2)
 
     def get_title_for_game(self, region_code: str) -> str | None:
         cur = self.con.cursor()
@@ -155,18 +155,18 @@ class Indexing:
                 new_path,
                 ["ID"]
             ))
-        except HTTPError as e:
+        except HTTPError as _:
             print(
                 "Cannot find game list in online storage, not indexing titles", file=stderr)
             return
-        except URLError as e:
+        except URLError as _:
             print(
                 "Cannot find game list in storage, not indexing titles", file=stderr)
             return
 
         print("Begin indexing titles...")
 
-        cur.executemany("INSERT INTO Titles VALUES(?, ?)",
+        _ = cur.executemany("INSERT INTO Titles VALUES(?, ?)",
                         processed_csv.items())
         self.con.commit()
         print("Finished indexing titles")
@@ -176,15 +176,17 @@ class Indexing:
         print("Begin indexing artwork...")
         print("Requesting artwork file table...")
         try:
-            contents = urlopen(self.zip_contents_url)
+            contents: StringIO = urlopen(self.zip_contents_url)
         except HTTPError as e:
             print(
                 f"Attempt to access storage file list on the web failed, no caching on this run, reason: {e.reason}", file=stderr)
             print(f"Error code: {e.code}", file=stderr)
             print(f"Response headers: {e.headers}", file=stderr)
+            return
         except URLError as e:
             print(
                 f"Error accessing storage file list on the given URL, no caching on this run, reason: {e.reason}", file=stderr)
+            return
         print("Done!")
         print("Parsing artwork file table...")
         games_page = BeautifulSoup(
@@ -198,7 +200,7 @@ class Indexing:
             raise ValueError(
                 "STORAGE.CACHING's 'zip_contents_location' key in the 'pyoplm.ini' does not lead to an internet archive zip content view page, please enter a proper link. Disabling caching for this run.")
 
-        rows = table.find_all('tr')
+        rows: ResultSet[Any] = table.find_all('tr') # pyright: ignore
 
         records = []
 
@@ -206,7 +208,7 @@ class Indexing:
         for row in rows:
             image_path = row.find('td')
             if image_path:
-                path = image_path.text.strip()
+                path: str = image_path.text.strip()
                 if path.endswith(('.jpg', '.png')):
                     split_path = path.split('/')
                     if len(split_path) < 3:
@@ -233,14 +235,14 @@ class Indexing:
                             art_type = 'BG'
                         else:
                             continue
-                    file_extension = filename.split('.')[2]
+                    file_extension: str = filename.split('.')[2]
                     dest_filename = f'{game_id}_{art_type}.{file_extension}'
                     records.append((game_id, console, art_type,
                                     file_extension, filename, dest_filename))
         print("Done!")
 
         print("Saving to index database...")
-        cur.executemany('INSERT INTO Artworks VALUES (?,?,?,?,?,?)', records)
+        _ = cur.executemany('INSERT INTO Artworks VALUES (?,?,?,?,?,?)', records)
         self.con.commit()
         print("Done indexing!")
         pass
@@ -257,7 +259,7 @@ class Storage:
         ONLINE = 2
         DISABLED = 3
 
-    Dimensions = NewType("Dimensions", Tuple[int, int])
+    Dimensions: type = NewType("Dimensions", tuple[int, int])
 
     operation_state: OperationState
     """The Storage's current operation state"""
@@ -265,10 +267,7 @@ class Storage:
     storage_location: str | Path
     """Location of the backup"""
 
-    old_dir: Path
-    """Path to OPL folder"""
-
-    cached_game_list: Dict[str, str]
+    cached_game_list: dict[str, str]
 
     index: Indexing | None
 
@@ -279,15 +278,15 @@ class Storage:
         ("COV", "COV2", "ICO", "LAB", "SCR", "BG", "LGO"))
     """All the types of OPL PS2 art files"""
 
-    PS2_ART_SIZES: Dict[str, Dimensions] = {
-        "COV": (140, 200),
-        "COV2": (242, 344),
-        "ICO": (64, 64),
-        "LAB": (18, 240),
-        "SCR": (250, 188),
-        "BG": (640, 480),
-        "SCR2": (250, 188),
-        "LGO": (300, 125)
+    PS2_ART_SIZES: dict[str, Dimensions] = {
+        "COV": Dimensions((140, 200)),
+        "COV2": Dimensions((242, 344)),
+        "ICO": Dimensions((64, 64)),
+        "LAB": Dimensions((18, 240)),
+        "SCR": Dimensions((250, 188)),
+        "BG": Dimensions((640, 480)),
+        "SCR2": Dimensions((250, 188)),
+        "LGO": Dimensions((300, 125))
     }
     """Sizes for different types of PS2 art"""
 

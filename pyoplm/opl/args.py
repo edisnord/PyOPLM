@@ -33,33 +33,31 @@ class BinToolsCommand:
 
 def handle_oplm_commands(opl_dir: Path, cmd: OPLMCommand, **kwargs):
     opl = PyOPLManager(opl_dir)
-    match cmd:
-        case OPLMCommand.LIST:
-            opl.list()
-        case OPLMCommand.ADD:
-            opl.add(**kwargs)
-        case OPLMCommand.RENAME:
-            opl.rename(**kwargs)
-        case OPLMCommand.FIX:
-            opl.fix()
-        case OPLMCommand.INIT:
-            opl.init()
-        case OPLMCommand.DELETE:
-            opl.delete(**kwargs)
-        case OPLMCommand.ST_RENAME:
-            opl.rename(**kwargs, storage=True)
-        case OPLMCommand.ST_ARTWORK:
-            opl.artwork(**kwargs)
+    if cmd == OPLMCommand.LIST:
+        opl.list()
+    elif cmd == OPLMCommand.ADD:
+        opl.add(**kwargs)
+    elif cmd == OPLMCommand.RENAME:
+        opl.rename(**kwargs)
+    elif cmd == OPLMCommand.FIX:
+        opl.fix()
+    elif cmd == OPLMCommand.INIT:
+        opl.init()
+    elif cmd == OPLMCommand.DELETE:
+        opl.delete(**kwargs)
+    elif cmd == OPLMCommand.ST_RENAME:
+        opl.rename(**kwargs, storage=True)
+    elif cmd == OPLMCommand.ST_ARTWORK:
+        opl.artwork(**kwargs)
 
 
 def handle_bintools_commands(cmd: BinToolsCommand, **kwargs):
-    match cmd:
-        case BinToolsCommand.BCHUNK:
-            pass
-        case BinToolsCommand.CUE2POPS:
-            pass
-        case BinToolsCommand.BINMERGE:
-            pass
+    if cmd == BinToolsCommand.BCHUNK:
+        pass
+    elif cmd == BinToolsCommand.CUE2POPS:
+        pass
+    elif cmd == BinToolsCommand.BINMERGE:
+        pass
 
 
 def add_parser(subparsers):
@@ -273,12 +271,13 @@ def main_parser():
         sys.exit(1)
 
     args = vars(arguments)
-    match args.pop("kind"):
-        case SubparserKind.OPLM:
-            args = vars(arguments)
-            args.pop("opl_dir", None)
-            handle_oplm_commands(opl_dir, **args)
-        case SubparserKind.BINTOOLS:
-            handle_bintools_commands(**args)
+    kind = args.pop("kind")
 
+    if kind == SubparserKind.OPLM:
+        args = vars(arguments)
+        args.pop("opl_dir", None)
+        handle_oplm_commands(opl_dir, **args)
+    elif kind == SubparserKind.BINTOOLS:
+        handle_bintools_commands(**args)
+    
     sys.exit(0)

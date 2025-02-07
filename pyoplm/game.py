@@ -158,14 +158,12 @@ class ULGame(Game):
         return self.GameStatus.OK
 
     def fix_issues(self, status: GameStatus):
-        match status:
-            case self.GameStatus.FILE_NOT_EXIST:
-                print(
-                    f"UL Game {self.opl_id} is missing a part. Deleting broken game...")
-                self.delete_game(self.ulcfg.filedir)
-            case _:
-                pass
-
+       if status == self.GameStatus.FILE_NOT_EXIST:
+           print(f"UL Game {self.opl_id} is missing a part. Deleting broken game...")
+           self.delete_game(self.ulcfg.filedir)
+       else:
+           pass 
+            
     def delete_game(self, opl_dir: Path) -> None:
         print("Deleting game chunks...")
         for file in self.get_filenames():
@@ -234,21 +232,21 @@ class ISOGame(Game):
         print(
             f"The game \'{self.opl_id}\' was renamed to \'{self.title}\'")
 
+        
     def fix_issues(self, status: GameStatus) -> None:
-        match status:
-            case self.GameStatus.WRONG_FILENAME:
-                print(f"Fixing \'{self.filename}\'...")
-                self.filepath = self.filepath.rename(
-                    self.filedir.joinpath(
-                        f"{self.opl_id}.{self.title}.{self.filetype}")
-                )
+        if status == self.GameStatus.WRONG_FILENAME:
+            print(f"Fixing '{self.filename}'...")
+            self.filepath = self.filepath.rename(
+                self.filedir.joinpath(f"{self.opl_id}.{self.title}.{self.filetype}")
+            )
 
-                self.filepath.chmod(0o777)
-                self.filename = self.filepath.name
-                self.gen_opl_id()
-                self.print_data()
-            case self.GameStatus.OK:
-                pass
+            self.filepath.chmod(0o777)
+            self.filename = self.filepath.name
+            self.gen_opl_id()
+            self.print_data()
+        elif status == self.GameStatus.OK:
+            pass  # No action needed
+
 
     # Get data from filename
     def get_filedata(self) -> None:
@@ -266,7 +264,7 @@ class ISOGame(Game):
 
         self.title = REGION_CODE_REGEX_STR.sub('', self.filename)
         self.title = re.sub(r".[iI][sS][oO]", "", self.title)
-        self.title = self.title.strip('._-\ ')
+        self.title = self.title.strip('._- ')
         self.filename = re.sub(r".[iI][sS][oO]", "", self.filename)
 
     def delete_game(self, opl_dir: Path):
@@ -303,7 +301,7 @@ class POPSGame(Game):
     def get_title_from_filename(self):
         self.title = REGION_CODE_REGEX_STR.sub('', self.filename)
         self.title = re.sub(r".[vV][cC][dD]", "", self.title)
-        self.title = self.title.strip('._-\ ')
+        self.title = self.title.strip('._- ')
 
     def get_id_from_file(self):
         with self.filepath.open('rb') as vcd:
@@ -318,29 +316,30 @@ class POPSGame(Game):
         else:
             return self.GameStatus.OK
 
+        
     def fix_issues(self, status: GameStatus) -> None:
-        match status:
-            case self.GameStatus.WRONG_FILENAME:
-                print(f"Fixing \'{self.filename}\'...")
-                self.filepath = self.filepath.rename(
+        if status == self.GameStatus.WRONG_FILENAME:
+            print(f"Fixing \'{self.filename}\'...")
+            self.filepath = self.filepath.rename(
+                self.filedir.joinpath(
+                    f"{self.opl_id}.{self.title}.{self.filetype}")
+            )
+
+            pops_data_folder = self.filedir.joinpath(
+                self.filepath.stem)
+            if pops_data_folder.exists():
+                self.filedir.joinpath(self.filepath.stem).rename(
                     self.filedir.joinpath(
-                        f"{self.opl_id}.{self.title}.{self.filetype}")
+                        f"{self.opl_id}.{self.title}")
                 )
 
-                pops_data_folder = self.filedir.joinpath(
-                    self.filepath.stem)
-                if pops_data_folder.exists():
-                    self.filedir.joinpath(self.filepath.stem).rename(
-                        self.filedir.joinpath(
-                            f"{self.opl_id}.{self.title}")
-                    )
+            self.filepath.chmod(0o777)
+            self.filename = self.filepath.name
+            self.gen_opl_id()
+            self.print_data()
+        elif status == self.GameStatus.OK:
+            pass
 
-                self.filepath.chmod(0o777)
-                self.filename = self.filepath.name
-                self.gen_opl_id()
-                self.print_data()
-            case self.GameStatus.OK:
-                pass
 
     def rename(self, new_title: str) -> None:
         if len(new_title) > 32:

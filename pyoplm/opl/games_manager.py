@@ -3,7 +3,8 @@ from pathlib import Path
 import re
 from shutil import copyfile
 import sys
-from typing import Dict, Iterator
+
+from collections.abc import Iterator
 
 from pyoplm.bintools import install_ps2_cue, psx_add
 
@@ -14,7 +15,7 @@ from itertools import chain
 
 
 class GamesManager():
-    games_dict: Dict[str, Game]
+    games_dict: dict[str, Game]
     iso_games: Iterator[ISOGame]
     ul_games: Iterator[ULGame]
     pops_games: Iterator[POPSGame]
