@@ -135,7 +135,7 @@ class ULGame(Game):
         if hasattr(self, "filenames"):
             return self.filenames
         else:
-            crc32 = self.crc32[2:].upper()
+            crc32 = self.crc32[2:].upper().zfill(8)
             def part_format(part): return hex(part)[2:4].zfill(2).upper()
 
             self.filenames = [self.ulcfg.filedir.joinpath(
