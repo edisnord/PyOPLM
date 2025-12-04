@@ -8,55 +8,43 @@ from pathlib import Path
 import sys
 
 from pyoplm.game import ISOGame, POPSGame
+from pyoplm.bchunk import Args as BChunkArgsCls, main as bchunk_main
+from pyoplm.cue2pops_basic_conversion import convert as cue2pops_convert
+from pyoplm.binmerge import binmerge as binmerge_run
 
 BinMergeArgs = namedtuple(
     "BinMergeArgs", ["outdir", "license", "split", "cuefile", "basename"])
 Cue2PopsArgs = namedtuple(
-    "Cue2PopsArgs", ["input_file", "gap", "vmode", "trainer", "output_file"])
+    "Cue2PopsArgs", ["input_file", "output_file"])
 BChunkArgs = namedtuple("BChunkArgs", ["p", "src_bin", "src_cue", "basename"])
 
-cue2pops_location = Path(
-    __file__).parent.joinpath("lib", "linux64", "cue2pops", "cue2pops")
-bchunk_location = Path(
-    __file__).parent.joinpath("lib", "linux64", "bchunk", "bchunk")
-binmerge_location = Path(
-    __file__).parent.joinpath("lib", "linux64", "binmerge", "binmerge")
-
-
 def cue2pops(args: Cue2PopsArgs):
-    if platform.machine() != "x86_64":
-        print(
-            f"Machines of type {platform.machine()} cannot run the binary dependencies of this app's bintools (yet)")
-        sys.exit(1)
-    args_list = [cue2pops_location.absolute().as_posix(), args.input_file or '',
-                 f"gap{args.gap}" if args.gap else '', 'vmode' if args.vmode else '', 'trainer' if args.trainer else '', args.output_file or '']
-    args_list = list(filter(bool, args_list))
-    complete = subprocess.run(args_list)
-    return complete.returncode
+    cue_path = args.input_file
+    if not os.path.isfile(cue_path):
+        print(f"Error: No input file {cue_path}", file=sys.stderr)
+        return 2
+
+    out_vcd = args.output_file
+    if out_vcd is None:
+        root, _ = os.path.splitext(cue_path)
+        out_vcd = root + ".VCD"
+
+    try:
+        cue2pops_convert(cue_path, out_vcd, False)
+    except Exception as e:
+        print(str(e), file=sys.stderr)
+        return 1
+    return 0
 
 
 def bchunk(args: BChunkArgs):
-    if platform.machine() != "x86_64":
-        print(
-            f"Machines of type {platform.machine()} cannot run the binary dependencies of this app's bintools (yet)")
-        sys.exit(1)
-    args_list = [bchunk_location.absolute().as_posix(
-    ), '-p' if args.p else '', args.src_bin, args.src_cue, args.basename]
-    args_list = list(filter(bool, args_list))
-    complete = subprocess.run(args_list)
-    return complete.returncode
+    complete = bchunk_main(BChunkArgsCls(binfile=args.src_bin, cuefile=args.src_cue, psxtruncate=args.p, basefile=args.basename))
+    return complete
 
 
 def binmerge(args: BinMergeArgs):
-    if platform.machine() != "x86_64":
-        print(
-            f"Machines of type {platform.machine()} cannot run the binary dependencies of this app's bintools (yet)")
-        sys.exit(1)
-    args_list = [binmerge_location.absolute().as_posix(), ('-o' + args.outdir) or '', '-l' if args.license else '', '-s' if args.split else '',
-                 args.cuefile.absolute().as_posix(), args.basename or '']
-    args_list = list(filter(bool, args_list))
-    complete = subprocess.run(args_list)
-    return complete.returncode
+    complete = binmerge_run(cuefile=args.cuefile, basename=args.basename, license=args.license, verbose=False, split=args.split, outdir=args.outdir)
+    return complete
 
 
 def install_ps2_cue(cuefile_path: Path, opl_dir: Path) -> ISOGame | None:
@@ -144,9 +132,6 @@ def psx_add(cuefile_path: Path, opl_dir: Path) -> POPSGame | None:
         "POPS", cuefile_path.stem + ".VCD")
     cue2pops_args: Cue2PopsArgs = Cue2PopsArgs(
         input_file=cue2pops_input,
-        gap=None,
-        vmode=None,
-        trainer=None,
         output_file=cue2pops_output
     )
     cue2pops_exit_code = cue2pops(cue2pops_args)

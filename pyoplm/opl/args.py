@@ -3,6 +3,7 @@ import os
 import sys
 
 from pyoplm.opl.pyoplm_manager import PyOPLManager
+from pyoplm.bintools import bchunk, BChunkArgs, cue2pops, Cue2PopsArgs, binmerge, BinMergeArgs
 
 from pathlib import Path
 from functools import reduce
@@ -53,11 +54,28 @@ def handle_oplm_commands(opl_dir: Path, cmd: OPLMCommand, **kwargs):
 
 def handle_bintools_commands(cmd: BinToolsCommand, **kwargs):
     if cmd == BinToolsCommand.BCHUNK:
-        pass
+        sys.exit(
+            bchunk(
+                BChunkArgs(
+                       src_bin=kwargs["src_bin"],
+                       src_cue=kwargs["src_cue"],
+                       basename=kwargs["basename"],
+                       p=kwargs["p"])))
     elif cmd == BinToolsCommand.CUE2POPS:
-        pass
+        sys.exit(
+            cue2pops(
+                Cue2PopsArgs(
+                    input_file=kwargs["input_file"],
+                    output_file=kwargs["output_file"])))
     elif cmd == BinToolsCommand.BINMERGE:
-        pass
+        sys.exit(
+            binmerge(
+                BinMergeArgs(
+                    outdir=kwargs["outdir"],
+                    license=kwargs["license"],
+                    split=kwargs["split"],
+                    cuefile=kwargs["cuefile"],
+                    basename=kwargs["basename"])))
 
 
 def add_parser(subparsers):
@@ -186,7 +204,7 @@ def bintools_parser(subparsers):
         parser = subparsers.add_parser(
             "bin2iso", help="Bin to ISO conversion (uses bchunk, repo: https://github.com/extramaster/bchunk)")
         parser.add_argument(
-            "-p", help=" PSX mode for MODE2/2352: write 2336 bytes from offset 24")
+            "-p", help=" PSX mode for MODE2/2352: write 2336 bytes from offset 24", action="store_true")
         parser.add_argument("src_bin", help="BIN file to convert")
         parser.add_argument("src_cue", help="CUE file related to image.bin")
         parser.add_argument(
@@ -214,15 +232,9 @@ def bintools_parser(subparsers):
 
     def cue2pops_parser(subparsers):
         cue2pops_parser = subparsers.add_parser(
-            "cue2pops", help="Turn single cue/bin files into VCD format readable by POPSTARTER (uses cue2pops-linux, repo: https://github.com/tallero/cue2pops-linux).")
+            "cue2pops", help="Turn single cue/bin files into VCD format readable by POPSTARTER (uses a simple Python translation cue2pops-linux, repo: https://github.com/tallero/cue2pops-linux).")
         cue2pops_parser.add_argument(
             "input_file", type=Path, help="Input cue file")
-        cue2pops_parser.add_argument(
-            "--gap", choices=["++", "--"], help="Adds(gap++)/subtracts(gap--) 2 seconds to all track indexes MSF")
-        cue2pops_parser.add_argument("--vmode", "-v", action="store_true",
-                                     help="Attempts to patch the video mode to NTSC and to fix the screen position")
-        cue2pops_parser.add_argument(
-            "--trainer", "-t", action="store_true", help="Enable cheats")
         cue2pops_parser.add_argument(
             "output_file", help="output file", nargs="?")
         parser.set_defaults(kind=SubparserKind.BINTOOLS,
@@ -252,9 +264,13 @@ def main_parser():
     subparsers = reduce(lambda x, y: y(x), parser_list, subparsers)
 
     arguments = parser.parse_args()
+    args = vars(arguments)
+    kind = args.pop("kind", None)
 
     if hasattr(arguments, "opl_dir") and arguments.opl_dir:
         opl_dir = arguments.opl_dir
+    elif kind == SubparserKind.BINTOOLS:
+        pass
     else:
         try:
             opl_dir = Path(os.environ["PYOPLM_OPL_DIR"])
@@ -262,22 +278,22 @@ def main_parser():
             print("The argument opl_dir must be supplied either as a command line argument or as an environment variable named 'PYOPLM_OPL_DIR.'", file=sys.stderr)
             sys.exit(1)
 
-    if not opl_dir.exists() or not opl_dir.is_dir():
-        print("Error: opl_dir directory doesn't exist!")
-        sys.exit(1)
+    if not kind == SubparserKind.BINTOOLS:
+        if not opl_dir.exists() or not opl_dir.is_dir():
+            print("Error: opl_dir directory doesn't exist!")
+            sys.exit(1)
 
     if len(sys.argv) == 1:
         parser.print_help(sys.stderr)
         sys.exit(1)
 
-    args = vars(arguments)
-    kind = args.pop("kind")
-
     if kind == SubparserKind.OPLM:
-        args = vars(arguments)
         args.pop("opl_dir", None)
         handle_oplm_commands(opl_dir, **args)
     elif kind == SubparserKind.BINTOOLS:
+        if len(sys.argv) == 2:
+            parser.print_help()
+            sys.exit(1)
         handle_bintools_commands(**args)
     
     sys.exit(0)

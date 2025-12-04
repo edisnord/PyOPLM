@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "pyoplm"
-version = "0.63"
+version = "0.70"
 description = "Tool To Manage Open-PS2-Loader USB-Drives & Games"
 authors = [
     {name = "Nold", email = "nold@gnu.one"},
@@ -29,19 +29,19 @@ Homepage = "https://github.com/edisnord/pyoplm"
 [project.scripts]
 pyoplm = "pyoplm:main"
 
-[tool.hatch.build.targets.sdist]
-include = [
-    "pyoplm/lib/linux64/bchunk/*",
-    "pyoplm/lib/linux64/binmerge/*",
-    "pyoplm/lib/linux64/cue2pops/*",
-    "pyoplm/**"
-]
+# [tool.hatch.build.targets.sdist]
+# include = [
+#     "pyoplm/lib/linux64/bchunk/*",
+#     "pyoplm/lib/linux64/binmerge/*",
+#     "pyoplm/lib/linux64/cue2pops/*",
+#     "pyoplm/**"
+# ]
 
-[tool.hatch.build.targets.wheel]
-include = [
-    "pyoplm/lib/linux64/bchunk/*",
-    "pyoplm/lib/linux64/binmerge/*",
-    "pyoplm/lib/linux64/cue2pops/*",
-    "pyoplm/**"
-]
+# [tool.hatch.build.targets.wheel]
+# include = [
+#     "pyoplm/lib/linux64/bchunk/*",
+#     "pyoplm/lib/linux64/binmerge/*",
+#     "pyoplm/lib/linux64/cue2pops/*",
+#     "pyoplm/**"
+# ]
 

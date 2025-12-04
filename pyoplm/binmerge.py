@@ -119,13 +119,13 @@ def read_cue_file(cue_path):
         files.append(this_file)
       continue
 
-    m = re.search('TRACK (\d+) ([^\s]*)', line)
+    m = re.search('TRACK (\\d+) ([^\\s]*)', line)
     if m and this_file:
       this_track = Track(int(m.group(1)), m.group(2))
       this_file.tracks.append(this_track)
       continue
 
-    m = re.search('INDEX (\d+) (\d+:\d+:\d+)', line)
+    m = re.search('INDEX (\\d+) (\\d+:\\d+:\\d+)', line)
     if m and this_track:
       this_track.indexes.append({'id': int(m.group(1)), 'stamp': m.group(2), 'file_offset':cuestamp_to_sectors(m.group(2))})
       continue
@@ -166,7 +166,7 @@ def sectors_to_cuestamp(sectors):
 
 def cuestamp_to_sectors(stamp):
   # 75 sectors per second
-  m = re.match("(\d+):(\d+):(\d+)", stamp)
+  m = re.match("(\\d+):(\\d+):(\\d+)", stamp)
   minutes = int(m.group(1))
   seconds = int(m.group(2))
   fields = int(m.group(3))
@@ -255,6 +255,91 @@ def split_files(new_basename, merged_file):
             break
   return True
 
+def binmerge(cuefile: str, basename: str, license: bool, verbose: bool, split: bool, outdir: str | bool):
+  if verbose:
+    global VERBOSE
+    VERBOSE = True
+
+  # Resolve relative paths and cwd
+  cuefile = os.path.abspath(cuefile)
+
+  if not os.path.exists(cuefile):
+    e("Cue file does not exist: %s" % cuefile)
+    return 1
+
+  if not os.access(cuefile, os.R_OK):
+    e("Cue file is not readable: %s" % cuefile)
+    return 1
+
+  if outdir:
+    outdir = os.path.abspath(outdir)
+    p("Output directory: %s" % outdir)
+    if not os.path.exists(outdir):
+      try:
+        p("Output directory did not exist; creating it.")
+        os.makedirs(outdir)
+      except:
+        e("Could not create output directory (permissions?)")
+        traceback.print_exc()
+        return 1
+  else:
+    outdir = os.path.dirname(cuefile)
+    p("Output directory: %s" % outdir)
+
+  if not (os.path.exists(outdir) or os.path.isdir(outdir)):
+    e("Output directory does not exist or is not a directory: %s" % outdir)
+    return 1
+
+  if not os.access(outdir, os.W_OK):
+    e("Output directory is not writable: %s" % outdir)
+    return 1
+
+  p("Opening cue: %s" % cuefile)
+  try:
+    cue_map = read_cue_file(cuefile)
+  except BinFilesMissingException:
+    e("One or more bin files were missing on disk. Aborting.")
+    return 1
+  except Exception as exc:
+    e("Error parsing cuesheet. Is it valid?")
+    traceback.print_exc()
+    return 1
+
+  if split:
+    cuesheet = gen_split_cuesheet(basename, cue_map[0])
+  else:
+    cuesheet = gen_merged_cuesheet(basename, cue_map)
+
+  if not os.path.exists(outdir):
+    e("Output dir does not exist")
+    return 1
+
+  new_cue_fn = os.path.join(outdir, basename+'.cue')
+  if os.path.exists(new_cue_fn):
+    e("Output cue file already exists. Quitting. Path: %s" % new_cue_fn)
+    return 1
+
+  if split:
+    p("Splitting files...")
+    if split_files(os.path.join(outdir, basename), cue_map[0]):
+      p("Wrote %d bin files" % len(cue_map[0].tracks))
+    else:
+      e("Unable to split bin files.")
+      return 1
+  else:
+    p("Merging %d tracks..." % len(cue_map))
+    out_path = os.path.join(outdir, basename+'.bin')
+    if merge_files(out_path, cue_map):
+      p("Wrote %s" % out_path)
+    else:
+      e("Unable to merge bin files.")
+      return 1
+
+  with open(new_cue_fn, 'w', newline='\r\n') as f:
+    f.write(cuesheet)
+  p("Wrote new cue: %s" % new_cue_fn)
+  return 0
+
 def main():
   parser = argparse.ArgumentParser(description="Using a cuesheet, merges numerous bin files into a single bin file and produces a new cuesheet with corrected offsets. Works great with Redump. Supports all block modes, but only binary track types.")
   parser.add_argument('cuefile', help='path to current cue file (bin files are expected in the same dir)')
@@ -273,90 +358,8 @@ def main():
 
   args = parser.parse_args()
 
-  if args.verbose:
-    global VERBOSE
-    VERBOSE = True
-
-  # Resolve relative paths and cwd
-  cuefile = os.path.abspath(args.cuefile)
-
-  if not os.path.exists(cuefile):
-    e("Cue file does not exist: %s" % cuefile)
-    return False
-
-  if not os.access(cuefile, os.R_OK):
-    e("Cue file is not readable: %s" % cuefile)
-    return False
-
-  if args.outdir:
-    outdir = os.path.abspath(args.outdir)
-    p("Output directory: %s" % outdir)
-    if not os.path.exists(outdir):
-      try:
-        p("Output directory did not exist; creating it.")
-        os.makedirs(outdir)
-      except:
-        e("Could not create output directory (permissions?)")
-        traceback.print_exc()
-        return False
-  else:
-    outdir = os.path.dirname(cuefile)
-    p("Output directory: %s" % outdir)
-
-  if not (os.path.exists(outdir) or os.path.isdir(outdir)):
-    e("Output directory does not exist or is not a directory: %s" % outdir)
-    return False
-
-  if not os.access(outdir, os.W_OK):
-    e("Output directory is not writable: %s" % outdir)
-    return False
-
-  p("Opening cue: %s" % cuefile)
-  try:
-    cue_map = read_cue_file(cuefile)
-  except BinFilesMissingException:
-    e("One or more bin files were missing on disk. Aborting.")
-    return False
-  except Exception as exc:
-    e("Error parsing cuesheet. Is it valid?")
-    traceback.print_exc()
-    return False
-
-  if args.split:
-    cuesheet = gen_split_cuesheet(args.basename, cue_map[0])
-  else:
-    cuesheet = gen_merged_cuesheet(args.basename, cue_map)
-
-  if not os.path.exists(args.outdir):
-    e("Output dir does not exist")
-    return False
-
-  new_cue_fn = os.path.join(outdir, args.basename+'.cue')
-  if os.path.exists(new_cue_fn):
-    e("Output cue file already exists. Quitting. Path: %s" % new_cue_fn)
-    return False
-
-  if args.split:
-    p("Splitting files...")
-    if split_files(os.path.join(outdir, args.basename), cue_map[0]):
-      p("Wrote %d bin files" % len(cue_map[0].tracks))
-    else:
-      e("Unable to split bin files.")
-      return False
-  else:
-    p("Merging %d tracks..." % len(cue_map))
-    out_path = os.path.join(outdir, args.basename+'.bin')
-    if merge_files(out_path, cue_map):
-      p("Wrote %s" % out_path)
-    else:
-      e("Unable to merge bin files.")
-      return False
-
-  with open(new_cue_fn, 'w', newline='\r\n') as f:
-    f.write(cuesheet)
-  p("Wrote new cue: %s" % new_cue_fn)
-
-  return True
-
-if not main():
-  sys.exit(1)
+  return True if binmerge(args.cuename, args.basename, args.license, args.verbose, args.split, args.outdir) == 0 else False
+  
+if __name__ == "__main__":
+  if not main():
+    sys.exit(1)
