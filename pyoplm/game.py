@@ -127,6 +127,9 @@ class ULGame(Game):
         self.size = self.get_size()
 
     def rename(self, new_title: str) -> None:
+        if new_title is None:
+            return
+
         self.ulcfg.parent_cfg.rename_game(self.opl_id, new_title)
         print(
             f"The game \'{self.opl_id}\' was renamed to \'{new_title}\'")

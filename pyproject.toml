@@ -29,6 +29,11 @@ Homepage = "https://github.com/edisnord/pyoplm"
 [project.scripts]
 pyoplm = "pyoplm:main"
 
+[tool.pytest.ini_options]
+markers = [
+    "integration: tests that hit the real archive.org dump (slow)",
+]
+
 # [tool.hatch.build.targets.sdist]
 # include = [
 #     "pyoplm/lib/linux64/bchunk/*",
