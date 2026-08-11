@@ -36,11 +36,13 @@ def csv_delete_cols_to_dict(file: str, cols_to_delete: List[str]) -> Dict[str, s
     """Read a CSV file, delete columns listed in cols_to_delete from it and create a
     dict. Fails if the CSV is left with more than 2 columns.
     """
-    source = StringIO(urlopen(str(file)).read().decode('utf-8'))
+    content = urlopen(str(file)).read().decode('utf-8')
+    dialect = csv.Sniffer().sniff(content[:4096], delimiters=',;\t|')
+    source = StringIO(content)
     next(source)
     output = StringIO()
 
-    reader = list(csv.reader(source))
+    reader = list(csv.reader(source, delimiter=dialect.delimiter))
     headers = reader[0]
 
     indexes_to_delete = [idx for idx, elem in enumerate(
