@@ -16,7 +16,8 @@ requires-python = ">=3.10"
 dependencies = [
     "pillow>=11.0",
     "beautifulsoup4==4.12.2",
-    "lxml"
+    "lxml",
+    "lz4"
 ]
 classifiers = [
     "Programming Language :: Python :: 3",

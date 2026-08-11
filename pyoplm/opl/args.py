@@ -24,6 +24,7 @@ class OPLMCommand:
     FIX = 5
     INIT = 6
     DELETE = 7
+    CONVERT = 8
 
 
 class BinToolsCommand:
@@ -50,6 +51,8 @@ def handle_oplm_commands(opl_dir: Path, cmd: OPLMCommand, **kwargs):
         opl.rename(**kwargs, storage=True)
     elif cmd == OPLMCommand.ST_ARTWORK:
         opl.artwork(**kwargs)
+    elif cmd == OPLMCommand.CONVERT:
+        opl.convert(**kwargs)
 
 
 def handle_bintools_commands(cmd: BinToolsCommand, **kwargs):
@@ -91,6 +94,8 @@ def add_parser(subparsers):
         "--iso", "-i", help="Don't do UL conversion", action="store_true")
     parser.add_argument(
         "--storage", "-s", help="Get title and artwork from storage if it's enabled", action="store_true")
+    parser.add_argument(
+        "--zso", "-z", help="Compress to ZSO format before installing", action="store_true")
     parser.add_argument(
         "opl_dir", help="Path to your OPL directory",
         type=Path, nargs="?")
@@ -199,6 +204,20 @@ def storage_parser(subparsers):
     return subparsers
 
 
+def convert_parser(subparsers):
+    parser = subparsers.add_parser(
+        "convert", help="Convert between ISO and ZSO formats")
+    direction = parser.add_mutually_exclusive_group(required=True)
+    direction.add_argument(
+        "--to-zso", help="Convert ISO to ZSO", action="store_true")
+    direction.add_argument(
+        "--to-iso", help="Convert ZSO to ISO", action="store_true")
+    parser.add_argument(
+        "file", help="File to convert", type=Path)
+    parser.set_defaults(kind=SubparserKind.OPLM, cmd=OPLMCommand.CONVERT)
+    return subparsers
+
+
 def bintools_parser(subparsers):
     def bchunk_parser(subparsers):
         parser = subparsers.add_parser(
@@ -258,7 +277,7 @@ def main_parser():
 
     subparsers = parser.add_subparsers(help="Choose your path...")
     parser_list = [list_parser, rename_parser, delete_parser,
-                   fix_parser, init_parser, add_parser, storage_parser, bintools_parser]
+                    fix_parser, init_parser, add_parser, storage_parser, convert_parser, bintools_parser]
 
     # Attach all parsers to the subparsers object
     subparsers = reduce(lambda x, y: y(x), parser_list, subparsers)

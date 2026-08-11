@@ -18,6 +18,7 @@ class GameFormat(Enum):
     UL = "UL (USBExtreme)"
     ISO = "ISO"
     POPS = "VCD"
+    ZSO = "ZSO"
 
 
 class Game(ABC):
@@ -36,7 +37,7 @@ class Game(ABC):
     title: str
     size: float
     proper_filename_regex = re.compile(
-        r"^[HhMmPpGgNnCcSsJjTtBbDdAaKk][a-zA-Z]{3}.?\d{3}\.?\d{2}\..{1,32}\.([iI][sS][oO]|[vV][cC][dD])$")
+        r"^[HhMmPpGgNnCcSsJjTtBbDdAaKk][a-zA-Z]{3}.?\d{3}\.?\d{2}\..{1,32}\.([iI][sS][oO]|[vV][cC][dD]|[zZ][sS][oO])$")
 
     def __init__(self, filepath: Path):
         self.filepath = filepath
@@ -275,6 +276,84 @@ class ISOGame(Game):
 
     def delete_game(self, opl_dir: Path):
         print("Deleting ISO file...")
+        self.filepath.unlink()
+        print("Done!")
+        super().delete_game(opl_dir)
+
+
+class ZSOGame(Game):
+    GameStatus = Enum("GameStatus", ["WRONG_FILENAME", "OK"])
+
+    def __init__(self, filepath: Path):
+        self.game_format = GameFormat.ZSO
+        self.filetype = "ZSO"
+        super().__init__(filepath)
+        self.get_filedata()
+
+    def check_status(self) -> GameStatus:
+        if not self.proper_filename_regex.findall(self.filename):
+            return self.GameStatus.WRONG_FILENAME
+        else:
+            return self.GameStatus.OK
+
+    def rename(self, new_title: str) -> None:
+        if new_title is None:
+            return
+
+        if len(new_title) > 32:
+            print(f"Title {new_title} is too long!",
+                  file=sys.stderr)
+            print(
+                "Titles longer than 32 characters are not permitted!", file=sys.stderr)
+            print(f"Skipping {self.opl_id}...", file=sys.stderr)
+            return
+
+        new_filename = f"{self.opl_id}.{new_title}.{self.filetype}"
+        new_filepath = self.filepath.parent.joinpath(
+            new_filename
+        )
+        self.filepath = self.filepath.rename(new_filepath)
+
+        new_filepath.chmod(0o777)
+
+        self.title = new_title
+        print(
+            f"The game \'{self.opl_id}\' was renamed to \'{self.title}\'")
+
+    def fix_issues(self, status: GameStatus) -> None:
+        if status == self.GameStatus.WRONG_FILENAME:
+            print(f"Fixing '{self.filename}'...")
+            self.filepath = self.filepath.rename(
+                self.filedir.joinpath(f"{self.opl_id}.{self.title}.{self.filetype}")
+            )
+
+            self.filepath.chmod(0o777)
+            self.filename = self.filepath.name
+            self.gen_opl_id()
+            self.print_data()
+        elif status == self.GameStatus.OK:
+            pass
+
+    def get_filedata(self) -> None:
+        if (res := REGION_CODE_REGEX_STR.findall(self.filename)):
+            self.id = res[0]
+        else:
+            raise ValueError(
+                f"Cannot find Game ID in filename '{self.filename}'. ZSO files must be properly named.")
+
+        if not self.id:
+            return
+
+        self.gen_opl_id()
+        self.size = self.filepath.stat().st_size / (1024 ** 2)
+
+        self.title = REGION_CODE_REGEX_STR.sub('', self.filename)
+        self.title = re.sub(r".[zZ][sS][oO]", "", self.title)
+        self.title = self.title.strip('._- ')
+        self.filename = re.sub(r".[zZ][sS][oO]", "", self.filename)
+
+    def delete_game(self, opl_dir: Path):
+        print("Deleting ZSO file...")
         self.filepath.unlink()
         print("Done!")
         super().delete_game(opl_dir)

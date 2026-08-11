@@ -57,10 +57,10 @@ The argument opl_dir is mostly required to be supplid by the commands of this ap
 OPL Directory in an environment variable named PYOPLM_OPL_DIR
 
 ```
-usage: pyoplm [-h] {list,rename,delete,fix,init,add,storage,bintools} ...
+usage: pyoplm [-h] {list,rename,delete,fix,init,add,storage,convert,bintools} ...
 
 positional arguments:
-  {list,rename,delete,fix,init,add,storage,bintools}
+  {list,rename,delete,fix,init,add,storage,convert,bintools}
                         Choose your path...
     list                List Games on OPL-Drive
     rename              Change the title of the game corresponding to opl_id
@@ -70,10 +70,20 @@ positional arguments:
     init                Initialize OPL folder structure
     add                 Add ISO/CUE PS2 and PSX game to opl_dir
     storage             Art and title storage-related functionality
+    convert             Convert between ISO and ZSO formats
     bintools            Tools for processing cue/bin games
 
 options:
   -h, --help            show this help message and exit
 ```
+
+### ZSO support
+
+OPL 1.2.0+ can load ZSO (LZ4-compressed ISO) files. Install a game directly
+as ZSO with `pyoplm add --zso <opl_dir> <game.iso>`, or convert existing
+files with `pyoplm convert --to-zso <game.iso>` /
+`pyoplm convert --to-iso <game.zso>`. ZSO files must be properly named
+(e.g. `SLUS_205.62.GameTitle.zso`), since the game ID cannot be read out of
+compressed data.
 
 Thank you danielb for the OPL Manager art database backups, great stuff
