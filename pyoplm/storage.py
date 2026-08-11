@@ -267,7 +267,7 @@ class Storage:
     storage_location: str | Path
     """Location of the backup"""
 
-    cached_game_list: dict[str, str]
+    cached_game_list: dict[str, Dict[str, str]]
 
     index: Indexing | None
 
@@ -341,9 +341,10 @@ class Storage:
                 return True
 
     def process_game_list_csv(self, file) -> Dict[str, str]:
-        if not self.cached_game_list:
-            self.cached_game_list = csv_delete_cols_to_dict(file, ["ID"])
-        return self.cached_game_list
+        if file not in self.cached_game_list:
+            self.cached_game_list[file] = csv_delete_cols_to_dict(
+                file, ["ID"])
+        return self.cached_game_list[file]
 
     def disable_storage(self):
         """Set the Storage's operation state to Disabled, effectively
@@ -429,19 +430,26 @@ class Storage:
                                 pass
                         if not found or count > 1:
                             break
-
                 case self.OperationState.FILESYSTEM:
-                    glob_pattern_suffix = "_*" if art_type == "SCR" and art_type == "BG" else "*"
-                    ps2_art_files: Iterator[Path] = list(self.storage_location.joinpath("PS2", region_code)\
-                        .glob(f"{region_code}_{art_type}{glob_pattern_suffix}"))
-                    ps1_art_files: Iterator[Path] = list(self.storage_location.joinpath("PS1", region_code)\
-                        .glob(f"{region_code}_{art_type}{glob_pattern_suffix}"))
-                    
+                    glob_pattern_suffix = "_*" if art_type == "SCR" or art_type == "BG" else "*"
+                    ps2_art_files: Iterator[Path] = list(filter(
+                        lambda f: f.name.startswith(f"{region_code}_{art_type}.") or f.name.startswith(f"{region_code}_{art_type}_"),
+                        self.storage_location.joinpath("PS2", region_code)\
+                        .glob(f"{region_code}_{art_type}{glob_pattern_suffix}")))
+                    ps1_art_files: Iterator[Path] = list(filter(
+                        lambda f: f.name.startswith(f"{region_code}_{art_type}.") or f.name.startswith(f"{region_code}_{art_type}_"),
+                        self.storage_location.joinpath("PS1", region_code)\
+                        .glob(f"{region_code}_{art_type}{glob_pattern_suffix}")))
 
-                    for art_file in islice(max(ps1_art_files, ps2_art_files, key=len), 2 if art_type == "SCR" else 1):
+
+                    for art_file in islice(sorted(max(ps1_art_files, ps2_art_files, key=len), key=lambda f: f.name), 2 if art_type == "SCR" else 1):
                         art_nr = ''
-                        if art_type == "SCR" and art_type == "BG":
-                            art_nr = int(art_file.name[16:18])+1
+                        if art_type == "SCR" or art_type == "BG":
+                            art_file_nr = art_file.stem.removeprefix(
+                                f"{region_code}_{art_type}_")
+                            if not art_file_nr.isdigit() or int(art_file_nr) > 1:
+                                continue
+                            art_nr = '2' if int(art_file_nr) == 1 else ''
 
                         dest_filename = f"{region_code}_{art_type}{art_nr}{art_file.suffix}"
                         dest_file = self.opl_dir.joinpath(
@@ -508,9 +516,14 @@ class Storage:
             case self.OperationState.ONLINE:
                 return f"{self.storage_location}{console}_LIST.CSV"
             case self.OperationState.FILESYSTEM:
-                return 'file://' + \
-                    quote(str(self.storage_location.joinpath(
-                        "{console}_LIST.CSV")))
+                csv_filename = f"{console}_LIST.CSV"
+                csv_path = self.storage_location.joinpath(csv_filename)
+                if not csv_path.exists():
+                    for candidate in self.storage_location.iterdir():
+                        if candidate.name.lower() == csv_filename.lower():
+                            csv_path = candidate
+                            break
+                return 'file://' + quote(str(csv_path))
             case _:
                 raise DisabledException(
                     "Storage features disabled, code should not have reached this point")

@@ -127,6 +127,9 @@ class ULGame(Game):
         self.size = self.get_size()
 
     def rename(self, new_title: str) -> None:
+        if new_title is None:
+            return
+
         self.ulcfg.parent_cfg.rename_game(self.opl_id, new_title)
         print(
             f"The game \'{self.opl_id}\' was renamed to \'{new_title}\'")
@@ -212,6 +215,9 @@ class ISOGame(Game):
             return self.GameStatus.OK
 
     def rename(self, new_title: str) -> None:
+        if new_title is None:
+            return
+
         if len(new_title) > 32:
             print(f"Title {new_title} is too long!",
                   file=sys.stderr)
@@ -342,6 +348,9 @@ class POPSGame(Game):
 
 
     def rename(self, new_title: str) -> None:
+        if new_title is None:
+            return
+
         if len(new_title) > 32:
             print(f"Title {new_title} is too long!",
                   file=sys.stderr)
