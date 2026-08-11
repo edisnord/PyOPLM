@@ -212,6 +212,9 @@ class ISOGame(Game):
             return self.GameStatus.OK
 
     def rename(self, new_title: str) -> None:
+        if new_title is None:
+            return
+
         if len(new_title) > 32:
             print(f"Title {new_title} is too long!",
                   file=sys.stderr)
@@ -342,6 +345,9 @@ class POPSGame(Game):
 
 
     def rename(self, new_title: str) -> None:
+        if new_title is None:
+            return
+
         if len(new_title) > 32:
             print(f"Title {new_title} is too long!",
                   file=sys.stderr)

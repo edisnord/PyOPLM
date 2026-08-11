@@ -429,18 +429,21 @@ class Storage:
                                 pass
                         if not found or count > 1:
                             break
-
                 case self.OperationState.FILESYSTEM:
-                    glob_pattern_suffix = "_*" if art_type == "SCR" and art_type == "BG" else "*"
-                    ps2_art_files: Iterator[Path] = list(self.storage_location.joinpath("PS2", region_code)\
-                        .glob(f"{region_code}_{art_type}{glob_pattern_suffix}"))
-                    ps1_art_files: Iterator[Path] = list(self.storage_location.joinpath("PS1", region_code)\
-                        .glob(f"{region_code}_{art_type}{glob_pattern_suffix}"))
-                    
+                    glob_pattern_suffix = "_*" if art_type == "SCR" or art_type == "BG" else "*"
+                    ps2_art_files: Iterator[Path] = list(filter(
+                        lambda f: f.name.startswith(f"{region_code}_{art_type}.") or f.name.startswith(f"{region_code}_{art_type}_"),
+                        self.storage_location.joinpath("PS2", region_code)\
+                        .glob(f"{region_code}_{art_type}{glob_pattern_suffix}")))
+                    ps1_art_files: Iterator[Path] = list(filter(
+                        lambda f: f.name.startswith(f"{region_code}_{art_type}.") or f.name.startswith(f"{region_code}_{art_type}_"),
+                        self.storage_location.joinpath("PS1", region_code)\
+                        .glob(f"{region_code}_{art_type}{glob_pattern_suffix}")))
+
 
                     for art_file in islice(max(ps1_art_files, ps2_art_files, key=len), 2 if art_type == "SCR" else 1):
                         art_nr = ''
-                        if art_type == "SCR" and art_type == "BG":
+                        if art_type == "SCR" or art_type == "BG":
                             art_nr = int(art_file.name[16:18])+1
 
                         dest_filename = f"{region_code}_{art_type}{art_nr}{art_file.suffix}"
