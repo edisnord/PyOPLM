@@ -10,7 +10,8 @@ from pyoplm.bintools import install_ps2_cue, psx_add
 
 from ..ul import ULConfig
 from ..common import get_iso_id, path_to_ul_cfg
-from ..game import Game, ISOGame, ULGame, POPSGame
+from ..game import Game, ISOGame, ULGame, POPSGame, ZSOGame
+from ..zso import compress as compress_zso, decompress as decompress_zso
 from itertools import chain
 
 
@@ -36,10 +37,17 @@ class GamesManager():
         path2 = self.opl_dir.joinpath("CD")
         return chain(path1.glob(extension_pattern), path2.glob(extension_pattern))
 
+    def __get_zso_game_files(self) -> Iterator[Path]:
+        extension_pattern = "*.[zZ][sS][oO]"
+        path1 = self.opl_dir.joinpath("DVD")
+        path2 = self.opl_dir.joinpath("CD")
+        return chain(path1.glob(extension_pattern), path2.glob(extension_pattern))
+
     def __initialize_games(self):
         game_to_files_func = [
             (POPSGame, self.__get_pops_game_files, "pops_games"),
             (ISOGame, self.__get_iso_game_files, "iso_games"),
+            (ZSOGame, self.__get_zso_game_files, "zso_games"),
         ]
         for (game_type, get_files, dest_list) in game_to_files_func:
             files = get_files()
@@ -67,6 +75,7 @@ class GamesManager():
     def list(self) -> None:
         games_and_kinds: Dict[str, Iterator[Game]] = {
             "ISO": self.iso_games,
+            "ZSO": self.zso_games,
             "UL": self.ul_games,
             "POPS": self.pops_games
         }
@@ -91,7 +100,7 @@ class GamesManager():
             sys.exit(1)
 
     # Installs game to OPL directory, returns the Game subclass object representing the added game
-    def add(self, game_path: Path, psx=False, iso=False, ul=False, force=False) -> Game:
+    def add(self, game_path: Path, psx=False, iso=False, ul=False, force=False, zso=False) -> Game:
         if psx:
             print("Installing POPS game...")
             if game := psx_add(game_path, self.opl_dir):
@@ -130,15 +139,49 @@ class GamesManager():
                     print(
                         f"Game title \'{title}\' is longer than 32 characters, skipping...")
                     sys.exit(1)
-                new_game_path: Path = self.opl_dir.joinpath(
-                    "DVD" if game_size > 700 else "CD",
-                    f"{iso_id}.{title}.iso")
 
-                print(
-                    f"Copying game to \'{new_game_path}\', please wait...")
-                copyfile(game_path, new_game_path)
-                new_game_path.chmod(0o777)
-                print("Done!")
+                if zso:
+                    new_game_path: Path = self.opl_dir.joinpath(
+                        "DVD" if game_size > 700 else "CD",
+                        f"{iso_id}.{title}.zso")
 
-                return ISOGame(new_game_path)
+                    print(
+                        f"Compressing game to \'{new_game_path}\', please wait...")
+                    compress_zso(game_path, new_game_path)
+                    new_game_path.chmod(0o777)
+                    print("Done!")
+
+                    return ZSOGame(new_game_path)
+                else:
+                    new_game_path: Path = self.opl_dir.joinpath(
+                        "DVD" if game_size > 700 else "CD",
+                        f"{iso_id}.{title}.iso")
+
+                    print(
+                        f"Copying game to \'{new_game_path}\', please wait...")
+                    copyfile(game_path, new_game_path)
+                    new_game_path.chmod(0o777)
+                    print("Done!")
+
+                    return ISOGame(new_game_path)
         sys.exit(0)
+
+    def convert(self, file_path: Path, to_zso: bool = True) -> None:
+        if to_zso:
+            if file_path.suffix.lower() not in ['.iso', '.vcd']:
+                print(f"Source file must be an ISO or VCD, got '{file_path.suffix}'", file=sys.stderr)
+                sys.exit(1)
+
+            zso_path = file_path.with_suffix('.zso')
+            print(f"Compressing '{file_path}' to '{zso_path}'...")
+            compress_zso(file_path, zso_path)
+            print("Done!")
+        else:
+            if file_path.suffix.lower() != '.zso':
+                print(f"Source file must be a ZSO, got '{file_path.suffix}'", file=sys.stderr)
+                sys.exit(1)
+
+            iso_path = file_path.with_suffix('.iso')
+            print(f"Decompressing '{file_path}' to '{iso_path}'...")
+            decompress_zso(file_path, iso_path)
+            print("Done!")

@@ -121,3 +121,6 @@ class PyOPLManager:
                 dir.mkdir(0o777)
         self.opl_dir.joinpath("ul.cfg").touch(0o777)
         print("Done!")
+
+    def convert(self, file: Path, to_zso=False, to_iso=False):
+        self.games_manager.convert(file, to_zso=to_zso)
