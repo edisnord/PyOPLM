@@ -36,11 +36,13 @@ def csv_delete_cols_to_dict(file: str, cols_to_delete: List[str]) -> Dict[str, s
     """Read a CSV file, delete columns listed in cols_to_delete from it and create a
     dict. Fails if the CSV is left with more than 2 columns.
     """
-    source = StringIO(urlopen(str(file)).read().decode('utf-8'))
+    content = urlopen(str(file)).read().decode('utf-8')
+    dialect = csv.Sniffer().sniff(content[:4096], delimiters=',;\t|')
+    source = StringIO(content)
     next(source)
     output = StringIO()
 
-    reader = list(csv.reader(source))
+    reader = list(csv.reader(source, delimiter=dialect.delimiter))
     headers = reader[0]
 
     indexes_to_delete = [idx for idx, elem in enumerate(
@@ -147,8 +149,8 @@ class Indexing:
 
             # TODO: Make code cross platform
             split_path = self.title_csv_location.split("/")
-            new_file = "PS2_LIST.CSV" if split_path[-1].startswith(
-                "PS1") else "PS1_LIST.CSV"
+            new_file = "PS2_LIST.csv" if split_path[-1].startswith(
+                "PS1") else "PS1_LIST.csv"
             new_path = "/".join(split_path[0:-1] + [new_file])
 
             processed_csv.update(csv_delete_cols_to_dict(
@@ -267,7 +269,7 @@ class Storage:
     storage_location: str | Path
     """Location of the backup"""
 
-    cached_game_list: dict[str, str]
+    cached_game_list: dict[str, Dict[str, str]]
 
     index: Indexing | None
 
@@ -306,14 +308,14 @@ class Storage:
             self.storage_location = loc
             if indexing_url:
                 self.index = Indexing(
-                    opl_dir, indexing_url, self.storage_location.joinpath("PS1_LIST.CSV").as_uri())
+                    opl_dir, indexing_url, self.storage_location.joinpath("PS1_LIST.csv").as_uri())
         else:
             try:
                 url = urlopen(backup_location)
                 url.close()
                 if indexing_url:
                     self.index = Indexing(opl_dir, indexing_url, urljoin(
-                        backup_location, "PS1_LIST.CSV"))
+                        backup_location, "PS1_LIST.csv"))
                 self.operation_state = self.OperationState.ONLINE
                 self.storage_location = backup_location
             except HTTPError as e:
@@ -341,9 +343,9 @@ class Storage:
                 return True
 
     def process_game_list_csv(self, file) -> Dict[str, str]:
-        if not self.cached_game_list:
-            self.cached_game_list = csv_delete_cols_to_dict(file, ["ID"])
-        return self.cached_game_list
+        if file not in self.cached_game_list:
+            self.cached_game_list[file] = csv_delete_cols_to_dict(file, ["ID"])
+        return self.cached_game_list[file]
 
     def disable_storage(self):
         """Set the Storage's operation state to Disabled, effectively
@@ -431,11 +433,15 @@ class Storage:
                             break
 
                 case self.OperationState.FILESYSTEM:
-                    glob_pattern_suffix = "_*" if art_type == "SCR" and art_type == "BG" else "*"
-                    ps2_art_files: Iterator[Path] = list(self.storage_location.joinpath("PS2", region_code)\
-                        .glob(f"{region_code}_{art_type}{glob_pattern_suffix}"))
-                    ps1_art_files: Iterator[Path] = list(self.storage_location.joinpath("PS1", region_code)\
-                        .glob(f"{region_code}_{art_type}{glob_pattern_suffix}"))
+                    glob_pattern_suffix = "_*" if art_type == "SCR" or art_type == "BG" else "*"
+                    ps2_art_files: Iterator[Path] = list(filter(
+                        lambda f: f.name.startswith(f"{region_code}_{art_type}.") or f.name.startswith(f"{region_code}_{art_type}_"),
+                        self.storage_location.joinpath("PS2", region_code)\
+                        .glob(f"{region_code}_{art_type}{glob_pattern_suffix}")))
+                    ps1_art_files: Iterator[Path] = list(filter(
+                        lambda f: f.name.startswith(f"{region_code}_{art_type}.") or f.name.startswith(f"{region_code}_{art_type}_"),
+                        self.storage_location.joinpath("PS1", region_code)\
+                        .glob(f"{region_code}_{art_type}{glob_pattern_suffix}")))
                     
 
                     for art_file in islice(max(ps1_art_files, ps2_art_files, key=len), 2 if art_type == "SCR" else 1):
@@ -506,11 +512,11 @@ class Storage:
     def get_game_title_csv_location(self, console: str = "PS1"):
         match self.operation_state:
             case self.OperationState.ONLINE:
-                return f"{self.storage_location}{console}_LIST.CSV"
+                return f"{self.storage_location}{console}_LIST.csv"
             case self.OperationState.FILESYSTEM:
                 return 'file://' + \
                     quote(str(self.storage_location.joinpath(
-                        "{console}_LIST.CSV")))
+                        f"{console}_LIST.csv")))
             case _:
                 raise DisabledException(
                     "Storage features disabled, code should not have reached this point")
@@ -525,7 +531,7 @@ class Storage:
             title = self.index.get_title_for_game(region_code)
             if title:
                 return title
-        # On the august backup there are PS2 games located in PS1_LIST.CSV and vice versa....
+        # On the august backup there are PS2 games located in PS1_LIST.csv and vice versa....
         # Have to search both
         for console in ["PS1", "PS2"]:
             game_csv_location = self.get_game_title_csv_location(console)
@@ -544,7 +550,7 @@ class Storage:
                 print(
                     "Cannot find game list in storage, not retrieving name for " + region_code, file=stderr)
         print("Cannot find game " + region_code +
-              " in PS1_LIST.CSV in the storage, not retrieving name.", file=stderr)
+               " in PS1_LIST.csv in the storage, not retrieving name.", file=stderr)
         return None
 
 
