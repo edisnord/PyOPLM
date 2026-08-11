@@ -60,9 +60,10 @@ class PyOPLManager:
     #  - otherwise just copy with OPL-like filename
     #  - If storage features are enabled, try to get title from storage and download artwork
 
-    def add(self, src_files: List[Path], psx=False, iso=False, ul=False, force=False, storage=False):
+    def add(self, src_files: List[Path], psx=False, iso=False, ul=False, force=False, storage=False, zso=False):
         for game_path in src_files:
-            game = self.games_manager.add(game_path, psx, iso, ul, force)
+            game = self.games_manager.add(
+                game_path, psx, iso, ul, force, zso=zso)
 
             if self.storage.is_enabled() and storage:
                 self.storage.get_artwork_for_game(game.opl_id, True)

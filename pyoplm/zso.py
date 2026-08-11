@@ -16,11 +16,12 @@ def lz4_compress(plain: bytes, level: int = 2) -> bytes:
 
 def lz4_decompress(compressed: bytes, block_size: int) -> bytes:
     decompressed = None
-    while True:
+    while decompressed is None:
+        if not compressed:
+            raise ValueError("Corrupt ZSO block, cannot decompress")
         try:
             decompressed = lz4.block.decompress(
                 compressed, uncompressed_size=block_size)
-            break
         except lz4.block.LZ4BlockError:
             compressed = compressed[:-1]
     return decompressed
@@ -51,6 +52,11 @@ def compress(iso_path: Path, zso_path: Path, level: int = 2) -> None:
         fin.seek(0, 2)
         total_bytes = fin.tell()
         fin.seek(0)
+
+        if total_bytes % DEFAULT_BLOCK_SIZE:
+            raise ValueError(
+                f"Input size {total_bytes} is not a multiple of the "
+                f"{DEFAULT_BLOCK_SIZE} byte ZSO block size")
 
         block_size = DEFAULT_BLOCK_SIZE
         align = total_bytes // 2 ** 31

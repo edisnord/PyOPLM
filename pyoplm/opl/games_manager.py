@@ -50,11 +50,14 @@ class GamesManager():
             (ZSOGame, self.__get_zso_game_files, "zso_games"),
         ]
         for (game_type, get_files, dest_list) in game_to_files_func:
-            files = get_files()
-            games = {
-                game.opl_id: game
-                for game in (game_type(file) for file in files)
-            }
+            games = {}
+            for file in get_files():
+                try:
+                    game = game_type(file)
+                except (ValueError, OSError) as e:
+                    print(f"Skipping '{file}': {e}", file=sys.stderr)
+                    continue
+                games[game.opl_id] = game
             self.games_dict.update(games)
 
             setattr(self, dest_list, iter(games.values()))
@@ -168,11 +171,16 @@ class GamesManager():
 
     def convert(self, file_path: Path, to_zso: bool = True) -> None:
         if to_zso:
-            if file_path.suffix.lower() not in ['.iso', '.vcd']:
-                print(f"Source file must be an ISO or VCD, got '{file_path.suffix}'", file=sys.stderr)
+            if file_path.suffix.lower() != '.iso':
+                print(f"Source file must be an ISO, got '{file_path.suffix}'", file=sys.stderr)
                 sys.exit(1)
 
             zso_path = file_path.with_suffix('.zso')
+            if zso_path.exists():
+                print(
+                    f"'{zso_path}' already exists, not overwriting", file=sys.stderr)
+                sys.exit(1)
+
             print(f"Compressing '{file_path}' to '{zso_path}'...")
             compress_zso(file_path, zso_path)
             print("Done!")
@@ -182,6 +190,11 @@ class GamesManager():
                 sys.exit(1)
 
             iso_path = file_path.with_suffix('.iso')
+            if iso_path.exists():
+                print(
+                    f"'{iso_path}' already exists, not overwriting", file=sys.stderr)
+                sys.exit(1)
+
             print(f"Decompressing '{file_path}' to '{iso_path}'...")
             decompress_zso(file_path, iso_path)
             print("Done!")

@@ -207,9 +207,10 @@ def storage_parser(subparsers):
 def convert_parser(subparsers):
     parser = subparsers.add_parser(
         "convert", help="Convert between ISO and ZSO formats")
-    parser.add_argument(
+    direction = parser.add_mutually_exclusive_group(required=True)
+    direction.add_argument(
         "--to-zso", help="Convert ISO to ZSO", action="store_true")
-    parser.add_argument(
+    direction.add_argument(
         "--to-iso", help="Convert ZSO to ISO", action="store_true")
     parser.add_argument(
         "file", help="File to convert", type=Path)
