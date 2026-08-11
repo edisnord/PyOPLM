@@ -1,0 +1,53 @@
+name: Publish
+
+on:
+  push:
+    branches: [master]
+
+jobs:
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      changed: ${{ steps.check.outputs.changed }}
+      version: ${{ steps.check.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - id: check
+        run: |
+          version() {
+            python3 -c "import tomllib, sys; print(tomllib.load(sys.stdin.buffer)['project']['version'])"
+          }
+          new=$(version < pyproject.toml)
+          old=$(git show HEAD~1:pyproject.toml 2>/dev/null | version || true)
+          echo "version=$new" >> "$GITHUB_OUTPUT"
+          if [ "$new" != "$old" ]; then changed=true; else changed=false; fi
+          echo "changed=$changed" >> "$GITHUB_OUTPUT"
+          echo "Version $new (was: ${old:-<none>}), changed=$changed"
+
+  publish:
+    needs: version
+    if: needs.version.outputs.changed == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+      - name: Run tests
+        run: uv run --with pytest pytest -m "not integration" -q
+      - name: Build
+        run: uv build
+      - name: Publish to PyPI
+        run: uv publish
+        env:
+          UV_PUBLISH_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ needs.version.outputs.version }}
+          name: v${{ needs.version.outputs.version }}
+          files: dist/*

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "pyoplm"
-version = "0.71"
+version = "0.72"
 description = "Tool To Manage Open-PS2-Loader USB-Drives & Games"
 authors = [
     {name = "Nold", email = "nold@gnu.one"},
