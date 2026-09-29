@@ -14,6 +14,14 @@ from enum import Enum
 from os import path
 
 
+def sanitize_title(title: str) -> str:
+    """Make a title safe to use in a filename (SMB/FAT/exFAT forbid <>:"/\\|?*)."""
+    title = re.sub(r'\s*:\s*', ' - ', title)
+    title = re.sub(r'[<>"/\\|?*\x00-\x1f]', '', title)
+    title = re.sub(r'\s+', ' ', title)
+    return title.strip(' .')
+
+
 class GameFormat(Enum):
     UL = "UL (USBExtreme)"
     ISO = "ISO"
@@ -219,6 +227,8 @@ class ISOGame(Game):
         if new_title is None:
             return
 
+        new_title = sanitize_title(new_title)
+
         if len(new_title) > 32:
             print(f"Title {new_title} is too long!",
                   file=sys.stderr)
@@ -244,7 +254,7 @@ class ISOGame(Game):
         if status == self.GameStatus.WRONG_FILENAME:
             print(f"Fixing '{self.filename}'...")
             self.filepath = self.filepath.rename(
-                self.filedir.joinpath(f"{self.opl_id}.{self.title}.{self.filetype}")
+                self.filedir.joinpath(f"{self.opl_id}.{sanitize_title(self.title)}.{self.filetype}")
             )
 
             self.filepath.chmod(0o777)
@@ -300,6 +310,8 @@ class ZSOGame(Game):
         if new_title is None:
             return
 
+        new_title = sanitize_title(new_title)
+
         if len(new_title) > 32:
             print(f"Title {new_title} is too long!",
                   file=sys.stderr)
@@ -324,7 +336,7 @@ class ZSOGame(Game):
         if status == self.GameStatus.WRONG_FILENAME:
             print(f"Fixing '{self.filename}'...")
             self.filepath = self.filepath.rename(
-                self.filedir.joinpath(f"{self.opl_id}.{self.title}.{self.filetype}")
+                self.filedir.joinpath(f"{self.opl_id}.{sanitize_title(self.title)}.{self.filetype}")
             )
 
             self.filepath.chmod(0o777)
@@ -407,7 +419,7 @@ class POPSGame(Game):
             print(f"Fixing \'{self.filename}\'...")
             self.filepath = self.filepath.rename(
                 self.filedir.joinpath(
-                    f"{self.opl_id}.{self.title}.{self.filetype}")
+                    f"{self.opl_id}.{sanitize_title(self.title)}.{self.filetype}")
             )
 
             pops_data_folder = self.filedir.joinpath(
@@ -415,7 +427,7 @@ class POPSGame(Game):
             if pops_data_folder.exists():
                 self.filedir.joinpath(self.filepath.stem).rename(
                     self.filedir.joinpath(
-                        f"{self.opl_id}.{self.title}")
+                        f"{self.opl_id}.{sanitize_title(self.title)}")
                 )
 
             self.filepath.chmod(0o777)
@@ -429,6 +441,8 @@ class POPSGame(Game):
     def rename(self, new_title: str) -> None:
         if new_title is None:
             return
+
+        new_title = sanitize_title(new_title)
 
         if len(new_title) > 32:
             print(f"Title {new_title} is too long!",
