@@ -89,7 +89,7 @@ class ULConfig():
         if filepath.exists():
             self.read()
         else:
-            filepath.touch(777)
+            filepath.touch(0o777)
 
     # Insert game to ULConfig from an ISO file, return ULConfigGame object representing it
     def add_game_from_iso(self, src_iso: Path, force: bool, title: bytes|None=None):
